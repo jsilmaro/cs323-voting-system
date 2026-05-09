@@ -101,3 +101,29 @@ Working on the edge node part of this activity helped me understand how the diff
 Following the structure of the existing code and extending it taught me how edge nodes are responsible for generating and sending data to the cloud, and that they can behave unpredictably in real scenarios. I observed that even when votes were sent in bursts, the API still accepted them and the rest of the pipeline continued working normally, which showed me that each component handles its own part independently.
 
 I also got a better understanding of why retry logic matters. When a vote fails to send, the edge node tries again instead of just stopping, which helps make sure votes are not lost due to temporary network issues. Overall, this activity gave me a clearer picture of how distributed systems are designed to keep working even when things do not go perfectly.
+## System Architecture Diagram
+┌─────────────────┐     HTTP POST      ┌─────────────────┐     publish      ┌─────────────────┐
+│   Edge Node 1   │ ─────────────────► │                 │ ───────────────► │                 │
+├─────────────────┤                    │   Render API    │                  │  GCP Pub/Sub    │
+│   Edge Node 2   │ ─────────────────► │  (Flask app)    │                  │  vote-topic     │
+├─────────────────┤                    │                 │                  │  vote-sub       │
+│   Edge Node 3   │ ─────────────────► │                 │                  │                 │
+└─────────────────┘                    └─────────────────┘                  └────────┬────────┘
+retry + idempotency                   validates votes                               │ subscribe
+publishes to topic                            │
+▼
+┌─────────────────────┐
+│   Render Worker     │
+│  dedup by doc_id    │
+│  user_id + poll_id  │
+└──────────┬──────────┘
+│ set()
+▼
+┌─────────────────────┐
+│      Firestore      │
+│  voting-system-db   │
+│  votes collection   │
+└─────────────────────┘
+Note: Cloud Run was unavailable due to billing restrictions.
+Render.com was used as an equivalent alternative for deploying
+both the API and Worker services.
