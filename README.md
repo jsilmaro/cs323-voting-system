@@ -76,3 +76,8 @@ One of the most insightful moments was during fault injection testing. When the 
 I also observed the importance of idempotency. During duplicate simulation, the same vote was sent twice, but the worker correctly identified duplicates using the combined user_id and poll_id as the document ID, preventing double-counting. This showed how design decisions at the data layer directly affect system correctness under real distributed conditions.
 
 The main challenge I encountered was GCP configuration — particularly Firestore not using the default database name, which caused 24,000+ errors before being resolved by explicitly specifying the database ID. This experience reinforced that distributed systems require careful coordination across components, and that small configuration mismatches can have large cascading effects.
+
+# Hannah Gentrolizo
+This activity helped me understand how distributed systems work in real-world scenarios. Unlike traditional programs, this system runs across multiple components like edge nodes, Cloud Run, Pub/Sub, and Firestore, which communicate asynchronously. I learned that systems don’t always process data immediately, but instead rely on messaging to handle tasks efficiently.
+
+I also realized the importance of fault tolerance. Even when the worker service was down, the system continued to accept votes because Pub/Sub buffered the messages. Once the worker recovered, it processed everything automatically. This showed me how distributed systems are designed to handle failures without stopping the entire system.
