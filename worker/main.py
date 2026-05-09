@@ -13,17 +13,26 @@ PROJECT_ID = "lustrous-baton-495804-r7"
 SUBSCRIPTION_ID = "vote-sub"
 DATABASE_ID = "voting-system-database"
 
+print("[Worker] Initializing credentials...")
 sa_key_b64 = os.environ.get("GCP_SA_KEY")
 if sa_key_b64:
-    sa_info = json.loads(base64.b64decode(sa_key_b64).decode("utf-8"))
-    credentials = service_account.Credentials.from_service_account_info(sa_info)
-    db = firestore.Client(project=PROJECT_ID, credentials=credentials, database=DATABASE_ID)
-    subscriber = pubsub_v1.SubscriberClient(credentials=credentials)
+    print("[Worker] GCP_SA_KEY found, loading credentials...")
+    try:
+        sa_info = json.loads(base64.b64decode(sa_key_b64).decode("utf-8"))
+        credentials = service_account.Credentials.from_service_account_info(sa_info)
+        db = firestore.Client(project=PROJECT_ID, credentials=credentials, database=DATABASE_ID)
+        subscriber = pubsub_v1.SubscriberClient(credentials=credentials)
+        print("[Worker] Credentials loaded successfully!")
+    except Exception as e:
+        print(f"[Worker] ERROR loading credentials: {e}")
+        raise
 else:
+    print("[Worker] No GCP_SA_KEY found, using default credentials...")
     db = firestore.Client(project=PROJECT_ID, database=DATABASE_ID)
     subscriber = pubsub_v1.SubscriberClient()
 
 subscription_path = subscriber.subscription_path(PROJECT_ID, SUBSCRIPTION_ID)
+print(f"[Worker] Subscription path: {subscription_path}")
 
 votes_processed = 0
 votes_duplicate = 0
@@ -65,27 +74,27 @@ def process_vote(message):
         message.nack()
 
 def run_worker():
-    print("=" * 50)
-    print("  Worker Service Starting")
-    print(f"  Project: {PROJECT_ID}")
-    print(f"  Database: {DATABASE_ID}")
-    print(f"  Subscription: {subscription_path}")
-    print("=" * 50)
-    streaming_pull_future = subscriber.subscribe(subscription_path, callback=process_vote)
-    print("[Worker] Listening for messages...")
     try:
+        print("[Worker] Starting Pub/Sub listener...")
+        streaming_pull_future = subscriber.subscribe(subscription_path, callback=process_vote)
+        print("[Worker] Listening for messages...")
         streaming_pull_future.result()
     except Exception as e:
-        print(f"[Worker] Stopped: {e}")
+        print(f"[Worker] FATAL ERROR in worker thread: {e}")
+        import traceback
+        traceback.print_exc()
 
-# Start worker thread at module level so gunicorn picks it up
+# Start worker thread at module level
+print("[Worker] Spawning background thread...")
 worker_thread = threading.Thread(target=run_worker, daemon=True)
 worker_thread.start()
+print("[Worker] Background thread started!")
 
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
         "status": "ok",
+        "thread_alive": worker_thread.is_alive(),
         "processed": votes_processed,
         "duplicates": votes_duplicate,
         "errors": votes_errored
