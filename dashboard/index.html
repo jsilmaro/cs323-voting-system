@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS323 Distributed Voting System</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0e1a;--surface:#111827;--surface2:#1a2236;--border:#1e2d45;--accent:#00d4ff;--green:#10b981;--amber:#f59e0b;--red:#ef4444;--text:#e2e8f0;--muted:#64748b;--choiceA:#3b82f6;--choiceB:#10b981;--choiceC:#f59e0b}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh}
+header{border-bottom:1px solid var(--border);padding:1.2rem 2rem;display:flex;align-items:center;justify-content:space-between;background:rgba(17,24,39,0.9);position:sticky;top:0;z-index:100}
+.logo{font-family:'JetBrains Mono',monospace;font-size:0.95rem;font-weight:700;color:var(--accent)}
+.logo span{color:var(--muted);font-weight:400}
+.badges{display:flex;gap:0.5rem}
+.badge{display:flex;align-items:center;gap:0.4rem;padding:0.25rem 0.7rem;border-radius:100px;font-size:0.7rem;font-family:'JetBrains Mono',monospace;border:1px solid var(--border);background:var(--surface)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite}
+.dot.off{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+main{max-width:1100px;margin:0 auto;padding:1.5rem 2rem}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem}
+.ct{font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:0.6rem}
+.sn{font-family:'JetBrains Mono',monospace;font-size:2.2rem;font-weight:700;color:var(--accent);line-height:1}
+.sl{font-size:0.75rem;color:var(--muted);margin-top:0.2rem}
+.bars{display:flex;flex-direction:column;gap:0.75rem}
+.br{display:flex;align-items:center;gap:0.75rem}
+.bl{font-family:'JetBrains Mono',monospace;font-size:0.8rem;font-weight:700;width:20px;text-align:center}
+.bt{flex:1;height:26px;background:var(--surface2);border-radius:6px;overflow:hidden}
+.bf{height:100%;border-radius:6px;transition:width 0.8s ease;display:flex;align-items:center;padding-left:0.6rem;font-family:'JetBrains Mono',monospace;font-size:0.7rem;font-weight:500;min-width:2rem}
+.ba{background:linear-gradient(90deg,#3b82f6,#60a5fa);color:#fff}
+.bb{background:linear-gradient(90deg,#10b981,#34d399);color:#fff}
+.bc{background:linear-gradient(90deg,#f59e0b,#fbbf24);color:#1a1a1a}
+.bc2{font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--muted);width:45px;text-align:right}
+.fg{display:flex;flex-direction:column;gap:0.4rem}
+.fl{font-size:0.7rem;color:var(--muted);font-family:'JetBrains Mono',monospace;display:block;margin-bottom:0.3rem}
+.fi{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:0.75rem;outline:none}
+.fi:focus{border-color:var(--accent)}
+.cbs{display:flex;gap:0.4rem}
+.cb{flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:'JetBrains Mono',monospace;font-weight:700;font-size:0.95rem;cursor:pointer;transition:all 0.2s}
+.cb:hover{border-color:var(--accent);color:var(--text)}
+.cbA{background:rgba(59,130,246,0.2);border-color:var(--choiceA);color:var(--choiceA)}
+.cbB{background:rgba(16,185,129,0.2);border-color:var(--choiceB);color:var(--choiceB)}
+.cbC{background:rgba(245,158,11,0.2);border-color:var(--choiceC);color:var(--choiceC)}
+.sb{width:100%;padding:0.65rem;background:var(--accent);color:#0a0e1a;border:none;border-radius:8px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:0.8rem;cursor:pointer;transition:all 0.2s;margin-top:0.75rem}
+.sb:hover{background:#00b8d9;transform:translateY(-1px)}
+.sb:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.al{padding:0.5rem 0.75rem;border-radius:8px;font-size:0.75rem;font-family:'JetBrains Mono',monospace;margin-top:0.6rem;display:none}
+.al.ok{background:rgba(16,185,129,0.15);border:1px solid var(--green);color:var(--green);display:block}
+.al.er{background:rgba(239,68,68,0.15);border:1px solid var(--red);color:var(--red);display:block}
+.feed{display:flex;flex-direction:column;gap:0.4rem;max-height:300px;overflow-y:auto}
+.feed::-webkit-scrollbar{width:3px}
+.feed::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.fi2{display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.65rem;background:var(--surface2);border-radius:8px;border:1px solid var(--border);font-size:0.75rem;animation:si 0.3s ease}
+@keyframes si{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+.cp{padding:0.15rem 0.5rem;border-radius:100px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:0.7rem;min-width:28px;text-align:center}
+.pA{background:rgba(59,130,246,0.2);color:var(--choiceA);border:1px solid var(--choiceA)}
+.pB{background:rgba(16,185,129,0.2);color:var(--choiceB);border:1px solid var(--choiceB)}
+.pC{background:rgba(245,158,11,0.2);color:var(--choiceC);border:1px solid var(--choiceC)}
+.fn{color:var(--muted);font-family:'JetBrains Mono',monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.7rem}
+.ft{color:var(--muted);font-size:0.65rem;white-space:nowrap}
+.sr{display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0;border-bottom:1px solid var(--border)}
+.sr:last-child{border-bottom:none}
+.sn2{font-size:0.8rem;font-family:'JetBrains Mono',monospace}
+.su{font-size:0.65rem;color:var(--muted);margin-top:0.1rem}
+.sc{padding:0.15rem 0.5rem;border-radius:100px;font-size:0.65rem;font-family:'JetBrains Mono',monospace}
+.sok{background:rgba(16,185,129,0.15);color:var(--green);border:1px solid var(--green)}
+.ser{background:rgba(239,68,68,0.15);color:var(--red);border:1px solid var(--red)}
+.sld{background:rgba(100,116,139,0.15);color:var(--muted);border:1px solid var(--muted)}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem}
+.rb{background:none;border:1px solid var(--border);color:var(--muted);padding:0.25rem 0.5rem;border-radius:6px;font-size:0.65rem;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all 0.2s}
+.rb:hover{border-color:var(--accent);color:var(--accent)}
+.lt{color:var(--muted);font-size:0.75rem;font-family:'JetBrains Mono',monospace;text-align:center;padding:1.5rem}
+@media(max-width:768px){.g3,.g2{grid-template-columns:1fr}main{padding:1rem}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">CS323 <span>// distributed voting system</span></div>
+  <div class="badges">
+    <div class="badge"><div class="dot" id="d1"></div><span id="t1">API</span></div>
+    <div class="badge"><div class="dot" id="d2"></div><span id="t2">Worker</span></div>
+  </div>
+</header>
+<main>
+  <div class="g3">
+    <div class="card"><div class="ct">Total votes</div><div class="sn" id="tv">—</div><div class="sl">stored in Firestore</div></div>
+    <div class="card"><div class="ct">Leading choice</div><div class="sn" id="lc">—</div><div class="sl" id="lp">—</div></div>
+    <div class="card"><div class="ct">Last updated</div><div class="sn" style="font-size:1.1rem;padding-top:0.4rem" id="lu">—</div><div class="sl">auto-refreshes every 20s</div></div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="sh"><div class="ct" style="margin:0">Vote distribution</div><button class="rb" onclick="load()">↻ refresh</button></div>
+      <div class="bars" id="vb"><div class="lt">loading...</div></div>
+    </div>
+    <div class="card">
+      <div class="ct">Submit a test vote</div>
+      <div class="fg">
+        <label class="fl">user_id (auto-generated)</label>
+        <input type="text" class="fi" id="uid" readonly>
+      </div>
+      <div class="fg" style="margin-top:0.6rem">
+        <label class="fl">choice</label>
+        <div class="cbs">
+          <button class="cb" onclick="pick('A')" id="bA">A</button>
+          <button class="cb" onclick="pick('B')" id="bB">B</button>
+          <button class="cb" onclick="pick('C')" id="bC">C</button>
+        </div>
+      </div>
+      <button class="sb" onclick="send()" id="sb">Submit vote →</button>
+      <div class="al" id="al"></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="sh"><div class="ct" style="margin:0">Recent votes (last 50)</div><span style="font-size:0.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace">live feed</span></div>
+      <div class="feed" id="feed"><div class="lt">loading...</div></div>
+    </div>
+    <div class="card">
+      <div class="ct">System status</div>
+      <div class="sr"><div><div class="sn2">Render API</div><div class="su">cs323-api.onrender.com</div></div><span class="sc sld" id="c1">checking...</span></div>
+      <div class="sr"><div><div class="sn2">Render Worker</div><div class="su">cs323-worker.onrender.com</div></div><span class="sc sld" id="c2">checking...</span></div>
+      <div class="sr"><div><div class="sn2">Firestore</div><div class="su">voting-system-database</div></div><span class="sc sld" id="c3">checking...</span></div>
+      <div class="sr"><div><div class="sn2">GCP Pub/Sub</div><div class="su">vote-topic / vote-sub</div></div><span class="sc sld" id="c4">checking...</span></div>
+    </div>
+  </div>
+</main>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getFirestore,collection,getDocs,query,orderBy,limit}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+const cfg={apiKey:"AIzaSyAVv57w_XVGM16DShOjeYGa4jrsUiuVxpE",authDomain:"lustrous-baton-495804-r7.firebaseapp.com",projectId:"lustrous-baton-495804-r7",storageBucket:"lustrous-baton-495804-r7.firebasestorage.app",messagingSenderId:"1015518489203",appId:"1:1015518489203:web:7378f3bf1f30d5b19d9806"};
+const fa=initializeApp(cfg);
+const db=getFirestore(fa,'voting-system-database');
+window._db=db;window._col=collection;window._get=getDocs;window._q=query;window._ob=orderBy;window._lim=limit;
+window.load();
+</script>
+<script>
+const API='https://cs323-api.onrender.com';
+const WRK='https://cs323-worker.onrender.com';
+let sel=null;
+function uuid(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)})}
+document.getElementById('uid').value=uuid();
+function pick(c){sel=c;['A','B','C'].forEach(x=>{document.getElementById('b'+x).className='cb'+(x===c?' cb'+c:'')});}
+async function send(){
+  if(!sel){alert2('Select A, B or C first','er');return;}
+  const btn=document.getElementById('sb');
+  btn.disabled=true;btn.textContent='Submitting...';
+  try{
+    const r=await fetch(API+'/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:document.getElementById('uid').value,poll_id:'poll_1',choice:sel})});
+    const d=await r.json();
+    if(r.ok){alert2('✓ Accepted! msg_id: '+d.message_id,'ok');document.getElementById('uid').value=uuid();sel=null;['A','B','C'].forEach(x=>document.getElementById('b'+x).className='cb');setTimeout(load,4000);}
+    else alert2('Error: '+(d.error||'unknown'),'er');
+  }catch(e){alert2('Network error: '+e.message,'er');}
+  btn.disabled=false;btn.textContent='Submit vote →';
+}
+function alert2(m,t){const e=document.getElementById('al');e.textContent=m;e.className='al '+t;setTimeout(()=>e.className='al',5000);}
+async function load(){
+  if(!window._db)return;
+  try{
+    const col=window._col(window._db,'votes');
+    const snap=await window._get(col);
+    const all=[];snap.forEach(d=>all.push(d.data()));
+    const counts={A:0,B:0,C:0};
+    all.forEach(v=>{if(counts[v.choice]!==undefined)counts[v.choice]++;});
+    const total=all.length;
+    document.getElementById('tv').textContent=total.toLocaleString();
+    const lead=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+    document.getElementById('lc').textContent='Choice '+lead[0];
+    document.getElementById('lp').textContent=total>0?Math.round(lead[1]/total*100)+'% of votes':'—';
+    const t=total||1;
+    document.getElementById('vb').innerHTML=['A','B','C'].map(c=>{const p=Math.round(counts[c]/t*100);return`<div class="br"><div class="bl" style="color:var(--choice${c})">${c}</div><div class="bt"><div class="bf b${c.toLowerCase()}" style="width:${p}%">${p>8?p+'%':''}</div></div><div class="bc2">${counts[c].toLocaleString()}</div></div>`;}).join('');
+    const sorted=[...all].sort((a,b)=>(b.processed_at||b.timestamp||0)-(a.processed_at||a.timestamp||0)).slice(0,50);
+    document.getElementById('feed').innerHTML=sorted.length?sorted.map(v=>{const ts=v.processed_at||v.timestamp;const ago=ts?tAgo(ts):'—';return`<div class="fi2"><span class="cp p${v.choice}">${v.choice}</span><span class="fn">${v.edge_node_id||'unknown'}</span><span class="ft">${ago}</span></div>`;}).join(''):'<div class="lt">no votes yet</div>';
+    document.getElementById('c3').textContent='connected';document.getElementById('c3').className='sc sok';
+    document.getElementById('lu').textContent=new Date().toLocaleTimeString();
+  }catch(e){
+    console.error(e);
+    document.getElementById('c3').textContent='quota/error';document.getElementById('c3').className='sc ser';
+    document.getElementById('vb').innerHTML='<div class="lt">Firestore quota exceeded — try again tomorrow or upgrade plan</div>';
+  }
+}
+function tAgo(ts){const d=Math.floor(Date.now()/1000-ts);if(d<60)return d+'s ago';if(d<3600)return Math.floor(d/60)+'m ago';if(d<86400)return Math.floor(d/3600)+'h ago';return Math.floor(d/86400)+'d ago';}
+async function chk(){
+  try{const r=await fetch(API+'/health');const d=await r.json();const ok=d.status==='ok';document.getElementById('c1').textContent=ok?'online':'error';document.getElementById('c1').className='sc '+(ok?'sok':'ser');document.getElementById('d1').className='dot '+(ok?'on':'off');}catch{document.getElementById('c1').textContent='offline';document.getElementById('c1').className='sc ser';document.getElementById('d1').className='dot off';}
+  try{const r=await fetch(WRK+'/health');const d=await r.json();const ok=d.status==='ok';document.getElementById('c2').textContent=d.thread_alive?'listening':'idle';document.getElementById('c2').className='sc '+(ok?'sok':'sld');document.getElementById('d2').className='dot '+(ok?'on':'off');document.getElementById('c4').textContent=d.thread_alive?'connected':'standby';document.getElementById('c4').className='sc '+(d.thread_alive?'sok':'sld');}catch{document.getElementById('c2').textContent='offline';document.getElementById('c2').className='sc ser';document.getElementById('d2').className='dot off';}
+}
+window.load=load;window.send=send;window.pick=pick;
+chk();setInterval(chk,15000);setInterval(load,20000);
+</script>
+</body>
+</html>
