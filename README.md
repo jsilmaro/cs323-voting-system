@@ -127,3 +127,23 @@ publishes to topic                            │
 Note: Cloud Run was unavailable due to billing restrictions.
 Render.com was used as an equivalent alternative for deploying
 both the API and Worker services.
+
+## ⚠️ Known Limitations
+
+### Firestore Read Quota
+The Firestore free tier allows **50,000 reads per day**. The dashboard fetches vote documents to display statistics, which consumes read quota. 
+
+**What caused quota exhaustion during development:**
+- Running `watch -n 3` with a Firestore query that downloaded all 2880+ documents every 3 seconds
+- This burned through the entire daily quota in under 1 minute (2880 reads × 20/min = 57,600 reads/min)
+
+**How to avoid:**
+- Never use `watch` with Firestore queries
+- Always use `limit()` when querying large collections
+- Run count scripts manually only when needed
+
+**If quota is exceeded:**
+- The dashboard will show 0 votes and empty feed
+- Votes are still being accepted and stored correctly — only the *display* is affected
+- Quota resets automatically every 24 hours at midnight Pacific Time (~3–4 PM Philippine Time)
+- The pipeline (Edge Node → API → Pub/Sub → Worker → Firestore) continues working normally regardless of read quota
