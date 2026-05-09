@@ -2,10 +2,12 @@ import json
 import os
 import base64
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from google.cloud import pubsub_v1
 from google.oauth2 import service_account
 
 app = Flask(__name__)
+CORS(app)
 
 PROJECT_ID = "lustrous-baton-495804-r7"
 TOPIC_ID = "vote-topic"
@@ -41,10 +43,8 @@ def receive_vote():
         message_data = json.dumps(vote).encode("utf-8")
         future = publisher.publish(topic_path, data=message_data)
         message_id = future.result()
-        print(f"[API] Published vote {vote['user_id']} -> msg_id: {message_id}")
         return jsonify({"status": "accepted", "message_id": message_id}), 200
     except Exception as e:
-        print(f"[API] Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
