@@ -147,3 +147,14 @@ The Firestore free tier allows **50,000 reads per day**. The dashboard fetches v
 - Votes are still being accepted and stored correctly — only the *display* is affected
 - Quota resets automatically every 24 hours at midnight Pacific Time (~3–4 PM Philippine Time)
 - The pipeline (Edge Node → API → Pub/Sub → Worker → Firestore) continues working normally regardless of read quota
+
+## Live Dashboard
+🌐 **https://cs323-voting-system-8547.onrender.com/**
+
+Interactive dashboard showing:
+- Real-time vote distribution (A, B, C)
+- Submit a test vote directly from the browser
+- Recent votes live feed
+- System status (API, Worker, Firestore, Pub/Sub)
+
+> Note: Dashboard reads from Firestore — if quota is exceeded, vote counts will show 0 but the pipeline still works. Quota resets daily.
