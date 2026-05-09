@@ -67,9 +67,9 @@ def process_vote(message):
 def run_worker():
     print("=" * 50)
     print("  Worker Service Starting")
-    print(f"  Project: {PROJECT_ID}")
-    print(f"  Database: {DATABASE_ID}")
-    print(f"  Subscription: {subscription_path}")
+    print(f"    Project:      {PROJECT_ID}")
+    print(f"    Database:     {DATABASE_ID}")
+    print(f"    Subscription: {subscription_path}")
     print("=" * 50)
     streaming_pull_future = subscriber.subscribe(subscription_path, callback=process_vote)
     print("[Worker] Listening for messages...")
