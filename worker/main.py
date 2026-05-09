@@ -7,15 +7,16 @@ from google.oauth2 import service_account
 
 PROJECT_ID = "lustrous-baton-495804-r7"
 SUBSCRIPTION_ID = "vote-sub"
+DATABASE_ID = "voting-system-database"
 
 sa_key_b64 = os.environ.get("GCP_SA_KEY")
 if sa_key_b64:
     sa_info = json.loads(base64.b64decode(sa_key_b64).decode("utf-8"))
     credentials = service_account.Credentials.from_service_account_info(sa_info)
-    db = firestore.Client(project=PROJECT_ID, credentials=credentials)
+    db = firestore.Client(project=PROJECT_ID, credentials=credentials, database=DATABASE_ID)
     subscriber = pubsub_v1.SubscriberClient(credentials=credentials)
 else:
-    db = firestore.Client(project=PROJECT_ID)
+    db = firestore.Client(project=PROJECT_ID, database=DATABASE_ID)
     subscriber = pubsub_v1.SubscriberClient()
 
 subscription_path = subscriber.subscription_path(PROJECT_ID, SUBSCRIPTION_ID)
@@ -63,6 +64,7 @@ def run_worker():
     print("=" * 50)
     print("  Worker Service Starting")
     print(f"  Project: {PROJECT_ID}")
+    print(f"  Database: {DATABASE_ID}")
     print(f"  Subscription: {subscription_path}")
     print("=" * 50)
 
