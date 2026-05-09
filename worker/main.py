@@ -67,9 +67,9 @@ def process_vote(message):
 def run_worker():
     print("=" * 50)
     print("  Worker Service Starting")
-    print(f"    Project:      {PROJECT_ID}")
-    print(f"    Database:     {DATABASE_ID}")
-    print(f"    Subscription: {subscription_path}")
+    print(f"  Project: {PROJECT_ID}")
+    print(f"  Database: {DATABASE_ID}")
+    print(f"  Subscription: {subscription_path}")
     print("=" * 50)
     streaming_pull_future = subscriber.subscribe(subscription_path, callback=process_vote)
     print("[Worker] Listening for messages...")
@@ -77,6 +77,10 @@ def run_worker():
         streaming_pull_future.result()
     except Exception as e:
         print(f"[Worker] Stopped: {e}")
+
+# Start worker thread at module level so gunicorn picks it up
+worker_thread = threading.Thread(target=run_worker, daemon=True)
+worker_thread.start()
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -88,7 +92,5 @@ def health():
     }), 200
 
 if __name__ == "__main__":
-    worker_thread = threading.Thread(target=run_worker, daemon=True)
-    worker_thread.start()
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
