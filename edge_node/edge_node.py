@@ -5,10 +5,12 @@ import requests
 import os
 import sys
 
-API_URL = os.environ.get("API_URL", "https://<YOUR_RENDER_API_URL>/vote")
+API_URL = os.environ.get("API_URL", "https://cs323-api.onrender.com/vote")
 NODE_ID = os.environ.get("NODE_ID", "node-" + uuid.uuid4().hex[:6])
 MAX_RETRIES = 3
 RETRY_DELAY = 2
+BURST_SIZE = int(os.environ.get("BURST_SIZE", 5))  
+BURST_INTERVAL = float(os.environ.get("BURST_INTERVAL", 10.0))  
 
 votes_generated = 0
 votes_sent = 0
@@ -46,22 +48,37 @@ def send_vote(vote, simulate_duplicate=False):
                 else:
                     votes_failed += 1
 
-def run_edge_node(simulate_duplicate=False):
+def burst_votes():
+    """Simulate a sudden spike of votes from this edge node."""
+    print(f"[{NODE_ID}] ⚡ BURST MODE: Sending {BURST_SIZE} votes rapidly...")
+    for _ in range(BURST_SIZE):
+        vote = generate_vote()
+        send_vote(vote)
+        time.sleep(0.2) 
+    print(f"[{NODE_ID}] ⚡ Burst complete.")
+
+def run_edge_node(simulate_duplicate=False, burst_mode=False):
     print("=" * 50)
     print(f"  Edge Node: {NODE_ID}")
     print(f"  API: {API_URL}")
     print(f"  Duplicate Mode: {simulate_duplicate}")
+    print(f"  Burst Mode: {burst_mode}")
     print("=" * 50)
     try:
         while True:
-            vote = generate_vote()
-            send_vote(vote, simulate_duplicate=simulate_duplicate)
-            if votes_generated % 10 == 0:
-                print(f"[{NODE_ID}] STATS -> Generated: {votes_generated} | Sent: {votes_sent} | Failed: {votes_failed}")
-            time.sleep(random.uniform(1, 3))
+            if burst_mode:
+                burst_votes()
+                time.sleep(BURST_INTERVAL)
+            else:
+                vote = generate_vote()
+                send_vote(vote, simulate_duplicate=simulate_duplicate)
+                if votes_generated % 10 == 0:
+                    print(f"[{NODE_ID}] STATS -> Generated: {votes_generated} | Sent: {votes_sent} | Failed: {votes_failed}")
+                time.sleep(random.uniform(1, 3))
     except KeyboardInterrupt:
         print(f"\n[{NODE_ID}] Stopped. Generated: {votes_generated} | Sent: {votes_sent} | Failed: {votes_failed}")
 
 if __name__ == "__main__":
     duplicate_mode = "--duplicate" in sys.argv
-    run_edge_node(simulate_duplicate=duplicate_mode)
+    burst_mode = "--burst" in sys.argv
+    run_edge_node(simulate_duplicate=duplicate_mode, burst_mode=burst_mode)

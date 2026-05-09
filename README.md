@@ -48,6 +48,19 @@ API_URL=https://cs323-api.onrender.com/vote python edge_node.py
 ```bash
 API_URL=https://cs323-api.onrender.com/vote python edge_node.py --duplicate
 ```
+### 6. Run Edge Node in Burst Mode
+```bash
+API_URL=https://cs323-api.onrender.com/vote python edge_node.py --burst
+```
+
+Burst mode simulates a sudden spike of votes from the edge node, sending multiple votes rapidly in succession before pausing. This reflects real-world scenarios such as a surge in votes near the end of a poll period.
+
+You can configure burst behavior using environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `BURST_SIZE` | `5` | Number of votes sent per burst |
+| `BURST_INTERVAL` | `10.0` | Seconds to wait between bursts |
 
 ## Fault Tolerance Testing Results
 
@@ -81,3 +94,10 @@ The main challenge I encountered was GCP configuration — particularly Firestor
 This activity helped me understand how distributed systems work in real-world scenarios. Unlike traditional programs, this system runs across multiple components like edge nodes, Cloud Run, Pub/Sub, and Firestore, which communicate asynchronously. I learned that systems don’t always process data immediately, but instead rely on messaging to handle tasks efficiently.
 
 I also realized the importance of fault tolerance. Even when the worker service was down, the system continued to accept votes because Pub/Sub buffered the messages. Once the worker recovered, it processed everything automatically. This showed me how distributed systems are designed to handle failures without stopping the entire system.
+
+### Charesh Angeline Rapirap
+Working on the edge node part of this activity helped me understand how the different components of a distributed system work together. My contribution was adding burst mode to the edge node, which sends multiple votes rapidly in a short period to simulate a sudden spike in activity, similar to what might happen when many users vote at the same time near the end of a poll.
+
+Following the structure of the existing code and extending it taught me how edge nodes are responsible for generating and sending data to the cloud, and that they can behave unpredictably in real scenarios. I observed that even when votes were sent in bursts, the API still accepted them and the rest of the pipeline continued working normally, which showed me that each component handles its own part independently.
+
+I also got a better understanding of why retry logic matters. When a vote fails to send, the edge node tries again instead of just stopping, which helps make sure votes are not lost due to temporary network issues. Overall, this activity gave me a clearer picture of how distributed systems are designed to keep working even when things do not go perfectly.
