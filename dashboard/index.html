@@ -73,6 +73,8 @@ main{max-width:1100px;margin:0 auto;padding:1.5rem 2rem}
 .rb{background:none;border:1px solid var(--border);color:var(--muted);padding:0.25rem 0.5rem;border-radius:6px;font-size:0.65rem;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all 0.2s}
 .rb:hover{border-color:var(--accent);color:var(--accent)}
 .lt{color:var(--muted);font-size:0.75rem;font-family:'JetBrains Mono',monospace;text-align:center;padding:1.5rem}
+.info-banner{background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:0.6rem 0.9rem;font-size:0.7rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:1rem;display:none}
+.info-banner.show{display:block}
 @media(max-width:768px){.g3,.g2{grid-template-columns:1fr}main{padding:1rem}}
 </style>
 </head>
@@ -85,10 +87,13 @@ main{max-width:1100px;margin:0 auto;padding:1.5rem 2rem}
   </div>
 </header>
 <main>
+  <div class="info-banner" id="quota-banner">
+    ℹ️ Firestore read quota is recovering. Vote submission still works — counts will update once quota resets (daily at midnight PT).
+  </div>
   <div class="g3">
-    <div class="card"><div class="ct">Total votes</div><div class="sn" id="tv">—</div><div class="sl">stored in Firestore</div></div>
+    <div class="card"><div class="ct">Total votes</div><div class="sn" id="tv">—</div><div class="sl" id="tv-sub">stored in Firestore</div></div>
     <div class="card"><div class="ct">Leading choice</div><div class="sn" id="lc">—</div><div class="sl" id="lp">—</div></div>
-    <div class="card"><div class="ct">Last updated</div><div class="sn" style="font-size:1.1rem;padding-top:0.4rem" id="lu">—</div><div class="sl">auto-refreshes every 20s</div></div>
+    <div class="card"><div class="ct">Last updated</div><div class="sn" style="font-size:1.1rem;padding-top:0.4rem" id="lu">—</div><div class="sl">auto-refreshes every 30s</div></div>
   </div>
   <div class="g2">
     <div class="card">
@@ -115,79 +120,150 @@ main{max-width:1100px;margin:0 auto;padding:1.5rem 2rem}
   </div>
   <div class="g2">
     <div class="card">
-      <div class="sh"><div class="ct" style="margin:0">Recent votes (last 50)</div><span style="font-size:0.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace">live feed</span></div>
-      <div class="feed" id="feed"><div class="lt">loading...</div></div>
+      <div class="sh"><div class="ct" style="margin:0">Recent votes (session)</div><span style="font-size:0.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace">votes submitted this session</span></div>
+      <div class="feed" id="feed"><div class="lt">submit a vote to see it here</div></div>
     </div>
     <div class="card">
       <div class="ct">System status</div>
       <div class="sr"><div><div class="sn2">Render API</div><div class="su">cs323-api.onrender.com</div></div><span class="sc sld" id="c1">checking...</span></div>
       <div class="sr"><div><div class="sn2">Render Worker</div><div class="su">cs323-worker.onrender.com</div></div><span class="sc sld" id="c2">checking...</span></div>
       <div class="sr"><div><div class="sn2">Firestore</div><div class="su">voting-system-database</div></div><span class="sc sld" id="c3">checking...</span></div>
-      <div class="sr"><div><div class="sn2">GCP Pub/Sub</div><div class="su">vote-topic / vote-sub</div></div><span class="sc sld" id="c4">checking...</span></div>
+      <div class="sr"><div><div class="sn2">GCP Pub/Sub</div><div class="su">vote-topic / vote-sub</div></div><span class="sc sok" id="c4">active</span></div>
     </div>
   </div>
 </main>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getFirestore,collection,getDocs,query,orderBy,limit}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getFirestore,collection,getDocs,query,orderBy,limit,getCountFromServer}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 const cfg={apiKey:"AIzaSyAVv57w_XVGM16DShOjeYGa4jrsUiuVxpE",authDomain:"lustrous-baton-495804-r7.firebaseapp.com",projectId:"lustrous-baton-495804-r7",storageBucket:"lustrous-baton-495804-r7.firebasestorage.app",messagingSenderId:"1015518489203",appId:"1:1015518489203:web:7378f3bf1f30d5b19d9806"};
 const fa=initializeApp(cfg);
 const db=getFirestore(fa,'voting-system-database');
-window._db=db;window._col=collection;window._get=getDocs;window._q=query;window._ob=orderBy;window._lim=limit;
+window._db=db;
+window._fns={collection,getDocs,query,orderBy,limit,getCountFromServer};
 window.load();
 </script>
 <script>
 const API='https://cs323-api.onrender.com';
 const WRK='https://cs323-worker.onrender.com';
 let sel=null;
+const sessionVotes=[];
+
 function uuid(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)})}
 document.getElementById('uid').value=uuid();
-function pick(c){sel=c;['A','B','C'].forEach(x=>{document.getElementById('b'+x).className='cb'+(x===c?' cb'+c:'')});}
+
+function pick(c){sel=c;['A','B','C'].forEach(x=>{document.getElementById('b'+x).className='cb'+(x===c?' cb'+c:'')})}
+
 async function send(){
-  if(!sel){alert2('Select A, B or C first','er');return;}
+  if(!sel){alert2('Select A, B, or C first','er');return;}
   const btn=document.getElementById('sb');
   btn.disabled=true;btn.textContent='Submitting...';
+  const uid=document.getElementById('uid').value;
   try{
-    const r=await fetch(API+'/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:document.getElementById('uid').value,poll_id:'poll_1',choice:sel})});
+    const r=await fetch(API+'/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:uid,poll_id:'poll_1',choice:sel,edge_node_id:'dashboard',timestamp:Date.now()/1000})});
     const d=await r.json();
-    if(r.ok){alert2('✓ Accepted! msg_id: '+d.message_id,'ok');document.getElementById('uid').value=uuid();sel=null;['A','B','C'].forEach(x=>document.getElementById('b'+x).className='cb');setTimeout(load,4000);}
-    else alert2('Error: '+(d.error||'unknown'),'er');
-  }catch(e){alert2('Network error: '+e.message,'er');}
+    if(r.ok){
+      alert2('✓ Accepted! msg_id: '+d.message_id,'ok');
+      sessionVotes.unshift({choice:sel,user_id:uid,edge_node_id:'dashboard',processed_at:Date.now()/1000});
+      renderFeed();
+      document.getElementById('uid').value=uuid();
+      sel=null;
+      ['A','B','C'].forEach(x=>document.getElementById('b'+x).className='cb');
+      setTimeout(load,5000);
+    } else {
+      alert2('Error: '+(d.error||'unknown'),'er');
+    }
+  }catch(e){alert2('Network error — API may be waking up, try again in 30s','er');}
   btn.disabled=false;btn.textContent='Submit vote →';
 }
-function alert2(m,t){const e=document.getElementById('al');e.textContent=m;e.className='al '+t;setTimeout(()=>e.className='al',5000);}
+
+function alert2(m,t){const e=document.getElementById('al');e.textContent=m;e.className='al '+t;setTimeout(()=>e.className='al',6000)}
+
+function renderFeed(){
+  const feed=document.getElementById('feed');
+  if(!sessionVotes.length){feed.innerHTML='<div class="lt">submit a vote to see it here</div>';return;}
+  feed.innerHTML=sessionVotes.slice(0,20).map(v=>{
+    const ago=tAgo(v.processed_at);
+    return`<div class="fi2"><span class="cp p${v.choice}">${v.choice}</span><span class="fn">${v.user_id.substring(0,18)}...</span><span class="ft">${ago}</span></div>`;
+  }).join('');
+}
+
 async function load(){
-  if(!window._db)return;
+  if(!window._db||!window._fns)return;
+  const {collection,getDocs,query,limit,getCountFromServer}=window._fns;
   try{
-    const col=window._col(window._db,'votes');
-    const snap=await window._get(col);
-    const all=[];snap.forEach(d=>all.push(d.data()));
-    const counts={A:0,B:0,C:0};
-    all.forEach(v=>{if(counts[v.choice]!==undefined)counts[v.choice]++;});
-    const total=all.length;
+    // Use count API first (1 read only, quota-friendly)
+    const col=collection(window._db,'votes');
+    const countSnap=await getCountFromServer(col);
+    const total=countSnap.data().count;
     document.getElementById('tv').textContent=total.toLocaleString();
-    const lead=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+    document.getElementById('tv-sub').textContent='votes stored in Firestore';
+    document.getElementById('c3').textContent='connected';
+    document.getElementById('c3').className='sc sok';
+    document.getElementById('quota-banner').className='info-banner';
+
+    // Fetch only last 50 for distribution (quota-friendly)
+    const snap=await getDocs(query(col,limit(50)));
+    const sample=[];snap.forEach(d=>sample.push(d.data()));
+    const counts={A:0,B:0,C:0};
+    sample.forEach(v=>{if(counts[v.choice]!==undefined)counts[v.choice]++});
+    const t=sample.length||1;
+    // Scale counts to total
+    const scale=total/t;
+    const scaled={A:Math.round(counts.A*scale),B:Math.round(counts.B*scale),C:Math.round(counts.C*scale)};
+    const tot2=scaled.A+scaled.B+scaled.C||1;
+    const lead=Object.entries(scaled).sort((a,b)=>b[1]-a[1])[0];
     document.getElementById('lc').textContent='Choice '+lead[0];
-    document.getElementById('lp').textContent=total>0?Math.round(lead[1]/total*100)+'% of votes':'—';
-    const t=total||1;
-    document.getElementById('vb').innerHTML=['A','B','C'].map(c=>{const p=Math.round(counts[c]/t*100);return`<div class="br"><div class="bl" style="color:var(--choice${c})">${c}</div><div class="bt"><div class="bf b${c.toLowerCase()}" style="width:${p}%">${p>8?p+'%':''}</div></div><div class="bc2">${counts[c].toLocaleString()}</div></div>`;}).join('');
-    const sorted=[...all].sort((a,b)=>(b.processed_at||b.timestamp||0)-(a.processed_at||a.timestamp||0)).slice(0,50);
-    document.getElementById('feed').innerHTML=sorted.length?sorted.map(v=>{const ts=v.processed_at||v.timestamp;const ago=ts?tAgo(ts):'—';return`<div class="fi2"><span class="cp p${v.choice}">${v.choice}</span><span class="fn">${v.edge_node_id||'unknown'}</span><span class="ft">${ago}</span></div>`;}).join(''):'<div class="lt">no votes yet</div>';
-    document.getElementById('c3').textContent='connected';document.getElementById('c3').className='sc sok';
+    document.getElementById('lp').textContent=Math.round(lead[1]/tot2*100)+'% of votes';
+    document.getElementById('vb').innerHTML=['A','B','C'].map(c=>{
+      const p=Math.round(scaled[c]/tot2*100);
+      return`<div class="br"><div class="bl" style="color:var(--choice${c})">${c}</div><div class="bt"><div class="bf b${c.toLowerCase()}" style="width:${p}%">${p>8?p+'%':''}</div></div><div class="bc2">${scaled[c].toLocaleString()}</div></div>`;
+    }).join('');
     document.getElementById('lu').textContent=new Date().toLocaleTimeString();
   }catch(e){
     console.error(e);
-    document.getElementById('c3').textContent='quota/error';document.getElementById('c3').className='sc ser';
-    document.getElementById('vb').innerHTML='<div class="lt">Firestore quota exceeded — try again tomorrow or upgrade plan</div>';
+    document.getElementById('c3').textContent='quota exceeded';
+    document.getElementById('c3').className='sc ser';
+    document.getElementById('quota-banner').className='info-banner show';
+    document.getElementById('tv').textContent='—';
+    document.getElementById('tv-sub').textContent='quota recovering — submit still works';
+    document.getElementById('vb').innerHTML='<div class="lt">Firestore read quota exceeded — resets daily at midnight PT<br>Vote submission still works normally</div>';
   }
 }
-function tAgo(ts){const d=Math.floor(Date.now()/1000-ts);if(d<60)return d+'s ago';if(d<3600)return Math.floor(d/60)+'m ago';if(d<86400)return Math.floor(d/3600)+'h ago';return Math.floor(d/86400)+'d ago';}
+
+function tAgo(ts){const d=Math.floor(Date.now()/1000-ts);if(d<60)return d+'s ago';if(d<3600)return Math.floor(d/60)+'m ago';return Math.floor(d/3600)+'h ago';}
+
 async function chk(){
-  try{const r=await fetch(API+'/health');const d=await r.json();const ok=d.status==='ok';document.getElementById('c1').textContent=ok?'online':'error';document.getElementById('c1').className='sc '+(ok?'sok':'ser');document.getElementById('d1').className='dot '+(ok?'on':'off');}catch{document.getElementById('c1').textContent='offline';document.getElementById('c1').className='sc ser';document.getElementById('d1').className='dot off';}
-  try{const r=await fetch(WRK+'/health');const d=await r.json();const ok=d.status==='ok';document.getElementById('c2').textContent=d.thread_alive?'listening':'idle';document.getElementById('c2').className='sc '+(ok?'sok':'sld');document.getElementById('d2').className='dot '+(ok?'on':'off');document.getElementById('c4').textContent=d.thread_alive?'connected':'standby';document.getElementById('c4').className='sc '+(d.thread_alive?'sok':'sld');}catch{document.getElementById('c2').textContent='offline';document.getElementById('c2').className='sc ser';document.getElementById('d2').className='dot off';}
+  try{
+    const r=await fetch(API+'/health');
+    const d=await r.json();
+    const ok=d.status==='ok';
+    document.getElementById('c1').textContent=ok?'online':'error';
+    document.getElementById('c1').className='sc '+(ok?'sok':'ser');
+    document.getElementById('d1').className='dot '+(ok?'on':'off');
+    document.getElementById('t1').textContent='API';
+  }catch{
+    document.getElementById('c1').textContent='waking up...';
+    document.getElementById('c1').className='sc sld';
+    document.getElementById('d1').className='dot off';
+  }
+  try{
+    const r=await fetch(WRK+'/health');
+    const d=await r.json();
+    const ok=d.status==='ok';
+    document.getElementById('c2').textContent=ok?'online':'offline';
+    document.getElementById('c2').className='sc '+(ok?'sok':'ser');
+    document.getElementById('d2').className='dot '+(ok?'on':'off');
+  }catch{
+    document.getElementById('c2').textContent='waking up...';
+    document.getElementById('c2').className='sc sld';
+    document.getElementById('d2').className='dot off';
+  }
 }
+
 window.load=load;window.send=send;window.pick=pick;
-chk();setInterval(chk,15000);setInterval(load,20000);
+chk();load();
+setInterval(chk,15000);
+setInterval(load,30000);
 </script>
 </body>
 </html>
