@@ -2,8 +2,12 @@ import json
 import os
 import base64
 import time
+import threading
+from flask import Flask, jsonify
 from google.cloud import pubsub_v1, firestore
 from google.oauth2 import service_account
+
+app = Flask(__name__)
 
 PROJECT_ID = "lustrous-baton-495804-r7"
 SUBSCRIPTION_ID = "vote-sub"
@@ -67,17 +71,24 @@ def run_worker():
     print(f"  Database: {DATABASE_ID}")
     print(f"  Subscription: {subscription_path}")
     print("=" * 50)
-
     streaming_pull_future = subscriber.subscribe(subscription_path, callback=process_vote)
     print("[Worker] Listening for messages...")
-
     try:
         streaming_pull_future.result()
-    except KeyboardInterrupt:
-        streaming_pull_future.cancel()
-        streaming_pull_future.result()
-        print(f"\n[Worker] Stopped.")
-        print(f"Processed: {votes_processed} | Duplicates: {votes_duplicate} | Errors: {votes_errored}")
+    except Exception as e:
+        print(f"[Worker] Stopped: {e}")
+
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({
+        "status": "ok",
+        "processed": votes_processed,
+        "duplicates": votes_duplicate,
+        "errors": votes_errored
+    }), 200
 
 if __name__ == "__main__":
-    run_worker()
+    worker_thread = threading.Thread(target=run_worker, daemon=True)
+    worker_thread.start()
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
