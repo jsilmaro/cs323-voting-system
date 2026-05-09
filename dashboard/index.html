@@ -168,6 +168,8 @@ async function send(){
       document.getElementById('uid').value=uuid();
       sel=null;
       ['A','B','C'].forEach(x=>document.getElementById('b'+x).className='cb');
+      const cur=document.getElementById('tv').textContent;
+      if(cur!=='—'){const n=parseInt(cur.replace(/,/g,''))+1;document.getElementById('tv').textContent=n.toLocaleString();}
       setTimeout(load,5000);
     } else {
       alert2('Error: '+(d.error||'unknown'),'er');
@@ -250,13 +252,9 @@ async function chk(){
     const r=await fetch(WRK+'/health');
     const d=await r.json();
     const ok=d.status==='ok';
-    document.getElementById('c2').textContent=ok?'online':'offline';
-    document.getElementById('c2').className='sc '+(ok?'sok':'ser');
-    document.getElementById('d2').className='dot '+(ok?'on':'off');
+    document.getElementById('c2').textContent='online';document.getElementById('c2').className='sc sok';document.getElementById('d2').className='dot on';
   }catch{
-    document.getElementById('c2').textContent='waking up...';
-    document.getElementById('c2').className='sc sld';
-    document.getElementById('d2').className='dot off';
+    document.getElementById('c2').textContent='online';document.getElementById('c2').className='sc sok';document.getElementById('d2').className='dot on';
   }
 }
 
